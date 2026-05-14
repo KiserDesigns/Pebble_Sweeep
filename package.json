@@ -41,10 +41,10 @@
             "gabbro",
             "flint"
         ],
-        "uuid": "f77d3896-63b3-4cc4-b349-f61ac75ca168",
+        "uuid": "f017b769-a29a-4200-a7ac-02b7ed97f1fb",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "1.0.0"
+    "version": "1.0.1"
 }
