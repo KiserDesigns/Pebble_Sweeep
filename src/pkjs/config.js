@@ -1,11 +1,7 @@
 module.exports = [
   {
     "type": "heading",
-    "defaultValue": "Appearance Settings"
-  },
-  {
-    "type": "text",
-    "defaultValue": "Adjust Colors, Sizes, and Visibility."
+    "defaultValue": "Sweeep Appearance Settings"
   },
   {
     "type": "section",
