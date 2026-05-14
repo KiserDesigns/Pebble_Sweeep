@@ -29,6 +29,10 @@ static void prv_default_settings() {
   settings.BackgroundColor = GColorBlack;
   settings.HourColor = GColorWhite;
   settings.MinuteColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0xFF5555), GColorWhite);
+  
+  //settings.BackgroundColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0x005555), GColorWhite);
+  //settings.HourColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0x00AAAA), GColorBlack);
+  //settings.MinuteColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0x55FFFF), GColorBlack);
 }
 
 // Save settings to persistent storage
@@ -57,8 +61,8 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
   int hour = tick_time->tm_hour % 12;
   int minute = tick_time->tm_min;
   
-  //hour = 8;
-  //minute = (tick_time->tm_sec + 18)%60;
+  //hour = 5;
+  //minute = 45;
   
   int hour_angle = DEG_TO_TRIGANGLE (30*hour + 0.5*minute);
   int minute_angle = DEG_TO_TRIGANGLE ((12*minute)%360);
@@ -139,6 +143,21 @@ static void outbox_sent_callback(DictionaryIterator *iterator, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "Outbox send success!");
 }
 
+static void prv_unobstructed_will_change(GRect final_unobstructed_screen_area, void *context) {
+  layer_mark_dirty(s_window_layer);
+  //window_update_proc(Layer *layer, GContext *ctx);
+}
+
+static void prv_unobstructed_change(AnimationProgress progress, void *context) {
+  layer_mark_dirty(s_window_layer);
+  //window_update_proc(Layer *layer, GContext *ctx);
+}
+
+static void prv_unobstructed_did_change(void *context) {
+  layer_mark_dirty(s_window_layer);
+  //window_update_proc(Layer *layer, GContext *ctx);
+}
+
 static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_get_root_layer(window));
 
@@ -147,6 +166,13 @@ static void main_window_load(Window *window) {
   layer_set_update_proc(s_window_layer, window_update_proc);
   
   layer_add_child(window_get_root_layer(window), s_window_layer);
+  
+  UnobstructedAreaHandlers handlers = {
+    .will_change = prv_unobstructed_will_change,
+    .change = prv_unobstructed_change,
+    .did_change = prv_unobstructed_did_change
+  };
+  unobstructed_area_service_subscribe(handlers, NULL);
 }
 
 static void main_window_unload(Window *window) {
@@ -167,7 +193,7 @@ static void init() {
 
   layer_mark_dirty(s_window_layer);
 
-  tick_timer_service_subscribe(SECOND_UNIT, tick_handler);
+  tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 
 
   // Register AppMessage callbacks
