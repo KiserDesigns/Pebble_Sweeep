@@ -1,0 +1,50 @@
+{
+    "author": "KiserDesigns",
+    "dependencies": {
+        "@rebble/clay": "^1.0.8"
+    },
+    "keywords": [
+        "pebble-app"
+    ],
+    "name": "sweeep",
+    "pebble": {
+        "capabilities": [
+            "configurable"
+        ],
+        "displayName": "Sweeep",
+        "enableMultiJS": true,
+        "messageKeys": [
+            "BackgroundColor",
+            "HourColor",
+            "MinuteColor"
+        ],
+        "projectType": "native",
+        "resources": {
+            "media": [
+                {
+                    "file": "images/SweeepIcon",
+                    "memoryFormat": "1Bit",
+                    "menuIcon": true,
+                    "name": "SWEEEP_ICON",
+                    "targetPlatforms": null,
+                    "type": "bitmap"
+                }
+            ]
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "aplite",
+            "basalt",
+            "chalk",
+            "diorite",
+            "emery",
+            "gabbro",
+            "flint"
+        ],
+        "uuid": "f77d3896-63b3-4cc4-b349-f61ac75ca168",
+        "watchapp": {
+            "watchface": true
+        }
+    },
+    "version": "1.0.0"
+}
