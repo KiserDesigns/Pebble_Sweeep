@@ -9,14 +9,17 @@
     "name": "sweeep",
     "pebble": {
         "capabilities": [
+            "location",
             "configurable"
         ],
         "displayName": "Sweeep",
         "enableMultiJS": true,
+        "manifestVersion": 2,
         "messageKeys": [
             "BackgroundColor",
             "HourColor",
-            "MinuteColor"
+            "MinuteColor",
+            "Shape"
         ],
         "projectType": "native",
         "resources": {
@@ -41,10 +44,15 @@
             "gabbro",
             "flint"
         ],
+        "usesPermissions": [
+            "Internet",
+            "Location",
+            "Timeline"
+        ],
         "uuid": "f017b769-a29a-4200-a7ac-02b7ed97f1fb",
         "watchapp": {
             "watchface": true
         }
     },
-    "version": "1.0.1"
+    "version": "1.1.0"
 }

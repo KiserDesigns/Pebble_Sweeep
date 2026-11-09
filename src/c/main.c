@@ -8,6 +8,7 @@ typedef struct ClaySettings {
   GColor BackgroundColor;
   GColor HourColor;
   GColor MinuteColor;
+  bool   IsSquare;
 } ClaySettings;
 
 // An instance of the struct
@@ -29,6 +30,7 @@ static void prv_default_settings() {
   settings.BackgroundColor = GColorBlack;
   settings.HourColor = GColorWhite;
   settings.MinuteColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0xFF5555), GColorWhite);
+  settings.IsSquare = false;
   
   //settings.BackgroundColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0x005555), GColorWhite);
   //settings.HourColor = PBL_IF_COLOR_ELSE(GColorFromHEX(0x00AAAA), GColorBlack);
@@ -65,11 +67,13 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
   //minute = 45;
   
   int hour_angle = DEG_TO_TRIGANGLE (30*hour + 0.5*minute);
+  //hour_angle =  DEG_TO_TRIGANGLE (270);
   int minute_angle = DEG_TO_TRIGANGLE ((12*minute)%360);
   
   // Get center of screen and max visible arm length for scaling
   GPoint center = GPoint((bounds.size.w-1)/2, (bounds.size.h-1)/2);
   int max_len = center.x>center.y? center.y : center.x;
+  int longest_len = bounds.size.w>bounds.size.h? bounds.size.w : bounds.size.h;
   
   // Calculate Hand
   int hand_len = (max_len*12/14);
@@ -79,15 +83,46 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
     // Actual Hands
   graphics_context_set_stroke_color(ctx, settings.MinuteColor);
   graphics_context_set_stroke_width(ctx, max_len/10);
-  if (minute < 30){
-    graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, hour_angle, (minute_angle + hour_angle));
-  } else {
-    graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
+  if (PBL_IF_RECT_ELSE(!settings.IsSquare, true)){
+    if (minute < 30){
+      graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, hour_angle, (minute_angle + hour_angle));
+    } else {
+      graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
+    }
+    
+    graphics_context_set_stroke_color(ctx, settings.HourColor);
+    graphics_draw_line(ctx, center, hand_end);
   }
   
-  graphics_context_set_stroke_color(ctx, settings.HourColor);
-  graphics_draw_line(ctx, center, hand_end);
+  if (PBL_IF_RECT_ELSE(settings.IsSquare, false)){
+    int inset = (max_len*2/14 + 1) - (max_len/20 - 1);
+    graphics_context_set_fill_color(ctx, settings.MinuteColor);
+    int radius = longest_len * 1.414 / 2;
+    GRect fill_rect = grect_crop(bounds, max_len - radius);
+    GRect arc_rect = grect_crop(bounds, inset + max_len/20);
+    GRect blackout_rect = grect_crop(arc_rect, max_len/20 + 1);
+      
+    if (minute < 30){
+      //graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, hour_angle, (minute_angle + hour_angle));
+      graphics_fill_radial(ctx, fill_rect, GOvalScaleModeFillCircle, radius, hour_angle, (minute_angle + hour_angle));
+    } else {
+      //graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
+      graphics_fill_radial(ctx, fill_rect, GOvalScaleModeFillCircle, radius, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
+    }
+    graphics_context_set_fill_color(ctx, settings.BackgroundColor);
+    graphics_fill_rect(ctx, blackout_rect, 0, 0);
+    
+    graphics_context_set_stroke_color(ctx, settings.HourColor);
+    graphics_draw_line(ctx, center, gpoint_from_polar(fill_rect, GOvalScaleModeFillCircle, hour_angle));
+    
+    
+    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, bounds.size.w, inset), 0, 0);
+    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, inset, bounds.size.h), 0, 0);
+    graphics_fill_rect(ctx, GRect(bounds.origin.x+bounds.size.w-inset, bounds.origin.y, inset, bounds.size.h), 0, 0);
+    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y+bounds.size.h-inset, bounds.size.w, inset), 0, 0);
+    
   
+  }
 
 }
 
@@ -122,6 +157,11 @@ static void inbox_received_callback(DictionaryIterator *iterator, void *context)
   settings.HourColor = gcolor_equal(settings.BackgroundColor,GColorBlack) ? GColorWhite : GColorBlack;
   settings.MinuteColor = settings.HourColor;
   #endif
+  
+  Tuple *shape_t = dict_find(iterator, MESSAGE_KEY_Shape);
+  if (shape_t) {
+    settings.IsSquare = 's'==shape_t->value->cstring[0];
+  }
 
   // Save and apply if any settings were changed
   if ( PBL_IF_COLOR_ELSE(bg_color_t || hour_color_t || min_color_t, bg_color_t) ){

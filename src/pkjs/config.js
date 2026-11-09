@@ -29,6 +29,23 @@ module.exports = [
         "messageKey": "MinuteColor",
         "defaultValue": "0xFF5555",
         "label": "Minute Hand"
+      },
+      {
+        "type": "radiogroup",
+        "capabilities": ["RECT"],
+        "messageKey": "Shape",
+        "label": "Sweep Shape",
+        "defaultValue":	"r",
+        "options": [
+          { 
+            "label": "Round", 
+            "value": "r" 
+          },
+          { 
+            "label": "Square", 
+            "value": "s" 
+          }
+        ]
       }
     ]
   },
