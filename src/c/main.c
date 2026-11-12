@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include <math.h>
 
 // Persistent storage key
 #define SETTINGS_KEY 1
@@ -65,10 +66,13 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
   
   //hour = 5;
   //minute = 45;
+  //hour = tick_time->tm_sec % 12;
+  //minute = tick_time->tm_sec;
   
   int hour_angle = DEG_TO_TRIGANGLE (30*hour + 0.5*minute);
-  //hour_angle =  DEG_TO_TRIGANGLE (270);
+  //hour_angle =  DEG_TO_TRIGANGLE (6*minute);
   int minute_angle = DEG_TO_TRIGANGLE ((12*minute)%360);
+  
   
   // Get center of screen and max visible arm length for scaling
   GPoint center = GPoint((bounds.size.w-1)/2, (bounds.size.h-1)/2);
@@ -92,34 +96,96 @@ static void window_update_proc(Layer *layer, GContext *ctx) {
     
     graphics_context_set_stroke_color(ctx, settings.HourColor);
     graphics_draw_line(ctx, center, hand_end);
-  }
-  
-  if (PBL_IF_RECT_ELSE(settings.IsSquare, false)){
+  } else {
     int inset = (max_len*2/14 + 1) - (max_len/20 - 1);
     graphics_context_set_fill_color(ctx, settings.MinuteColor);
     int radius = longest_len * 1.414 / 2;
     GRect fill_rect = grect_crop(bounds, max_len - radius);
     GRect arc_rect = grect_crop(bounds, inset + max_len/20);
     GRect blackout_rect = grect_crop(arc_rect, max_len/20 + 1);
-      
-    if (minute < 30){
-      //graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, hour_angle, (minute_angle + hour_angle));
-      graphics_fill_radial(ctx, fill_rect, GOvalScaleModeFillCircle, radius, hour_angle, (minute_angle + hour_angle));
-    } else {
-      //graphics_draw_arc(ctx, hand_rect, GOvalScaleModeFitCircle, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
-      graphics_fill_radial(ctx, fill_rect, GOvalScaleModeFillCircle, radius, (minute_angle + hour_angle), hour_angle + TRIG_MAX_ANGLE);
+    int corner_angle = atan2_lookup(arc_rect.size.w, arc_rect.size.h);
+    //int corner_length = sqrt(arc_rect.size.w*arc_rect.size.w + arc_rect.size.h*arc_rect.size.h)/2;
+    
+    //graphics_draw_line(ctx, center, gpoint_from_polar(fill_rect, GOvalScaleModeFillCircle, hour_angle));
+    
+    bounds.size.w = bounds.size.w-1;
+    bounds.size.h = bounds.size.h-1;
+    
+    int hour_direction = 0; //points to top, right, bottom, or left edge of screen
+    
+    if ((hour_angle<corner_angle || hour_angle>TRIG_MAX_ANGLE-corner_angle)){ //top
+      hand_end = GPoint(bounds.size.w/2+arc_rect.size.h/2*sin_lookup(hour_angle)/cos_lookup(hour_angle), bounds.size.h/2-arc_rect.size.h/2);
+      hour_direction = 0;
+    } else if ((hour_angle>TRIG_MAX_ANGLE/2-corner_angle && hour_angle<TRIG_MAX_ANGLE/2+corner_angle)) { //bottom
+      hand_end = GPoint(bounds.size.w/2-arc_rect.size.h/2*sin_lookup(hour_angle)/cos_lookup(hour_angle), bounds.size.h/2+arc_rect.size.h/2);
+      hour_direction = 2;
+    } else if (hour_angle < TRIG_MAX_ANGLE/2) { //right
+      hand_end = GPoint(bounds.size.w/2+arc_rect.size.w/2, bounds.size.h/2-arc_rect.size.w/2*cos_lookup(hour_angle)/sin_lookup(hour_angle));
+      hour_direction = 1;
+    } else { //left
+      hand_end = GPoint(bounds.size.w/2-arc_rect.size.w/2, bounds.size.h/2+arc_rect.size.w/2*cos_lookup(hour_angle)/sin_lookup(hour_angle));
+      hour_direction = 3;
     }
-    graphics_context_set_fill_color(ctx, settings.BackgroundColor);
-    graphics_fill_rect(ctx, blackout_rect, 0, 0);
+    
+    GPoint minute_end = GPoint(0,0);
+    int hand_angle = (minute_angle + hour_angle)%TRIG_MAX_ANGLE;
+    int minute_direction = 0;
+    
+    if ((hand_angle<corner_angle || hand_angle>TRIG_MAX_ANGLE-corner_angle)){ //top
+      minute_end = GPoint(bounds.size.w/2+arc_rect.size.h/2*sin_lookup(hand_angle)/cos_lookup(hand_angle), bounds.size.h/2-arc_rect.size.h/2);
+      minute_direction = 0;
+    } else if ((hand_angle>TRIG_MAX_ANGLE/2-corner_angle && hand_angle<TRIG_MAX_ANGLE/2+corner_angle)) { //bottom
+      minute_end = GPoint(bounds.size.w/2-arc_rect.size.h/2*sin_lookup(hand_angle)/cos_lookup(hand_angle), bounds.size.h/2+arc_rect.size.h/2);
+      minute_direction = 2;
+    } else if (hand_angle < TRIG_MAX_ANGLE/2) { //right
+      minute_end = GPoint(bounds.size.w/2+arc_rect.size.w/2, bounds.size.h/2-arc_rect.size.w/2*cos_lookup(hand_angle)/sin_lookup(hand_angle));
+      minute_direction = 1;
+    } else { //left
+      minute_end = GPoint(bounds.size.w/2-arc_rect.size.w/2, bounds.size.h/2+arc_rect.size.w/2*cos_lookup(hand_angle)/sin_lookup(hand_angle));
+      minute_direction = 3;
+    }
+
+    GPoint starting_point = hand_end;
+    GPoint ending_point = minute_end;
+    int start_direction = hour_direction;
+    int end_direction = minute_direction;
+    if (minute > 30){
+      start_direction = minute_direction;
+      end_direction = hour_direction;
+      starting_point = minute_end;
+      ending_point = hand_end;
+    }
+    if (start_direction == end_direction && (minute > 15 && minute < 45)){
+      start_direction = start_direction - 4;
+    }
+    GPoint clockwise_corner[4] = {GPoint(bounds.size.w/2+arc_rect.size.w/2, bounds.size.h/2-arc_rect.size.h/2),
+                                  GPoint(bounds.size.w/2+arc_rect.size.w/2, bounds.size.h/2+arc_rect.size.h/2),
+                                  GPoint(bounds.size.w/2-arc_rect.size.w/2, bounds.size.h/2+arc_rect.size.h/2),
+                                  GPoint(bounds.size.w/2-arc_rect.size.w/2, bounds.size.h/2-arc_rect.size.h/2)};
+    APP_LOG(APP_LOG_LEVEL_INFO, "start, end: %d, %d", start_direction, end_direction);
+    while (start_direction != end_direction){
+      graphics_draw_line(ctx, starting_point, clockwise_corner[(start_direction+4)%4]);
+      starting_point = clockwise_corner[(start_direction+4)%4];
+      start_direction = start_direction+1;
+      if (start_direction == 4) { 
+        start_direction = 0;
+      }
+    }
+    graphics_draw_line(ctx, starting_point, ending_point);
+    
     
     graphics_context_set_stroke_color(ctx, settings.HourColor);
-    graphics_draw_line(ctx, center, gpoint_from_polar(fill_rect, GOvalScaleModeFillCircle, hour_angle));
+    graphics_draw_line(ctx, center, hand_end);
+    
+   
+    //graphics_context_set_fill_color(ctx, settings.BackgroundColor);
+    //graphics_fill_rect(ctx, blackout_rect, 0, 0);
     
     
-    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, bounds.size.w, inset), 0, 0);
-    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, inset, bounds.size.h), 0, 0);
-    graphics_fill_rect(ctx, GRect(bounds.origin.x+bounds.size.w-inset, bounds.origin.y, inset, bounds.size.h), 0, 0);
-    graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y+bounds.size.h-inset, bounds.size.w, inset), 0, 0);
+    //graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, bounds.size.w, inset), 0, 0);
+    //graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y, inset, bounds.size.h), 0, 0);
+    //graphics_fill_rect(ctx, GRect(bounds.origin.x+bounds.size.w-inset, bounds.origin.y, inset, bounds.size.h), 0, 0);
+    //graphics_fill_rect(ctx, GRect(bounds.origin.x, bounds.origin.y+bounds.size.h-inset, bounds.size.w, inset), 0, 0);
     
   
   }
